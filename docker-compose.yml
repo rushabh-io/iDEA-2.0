@@ -1,0 +1,76 @@
+version: '3.8'
+
+services:
+  # Backend API - FastAPI
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: nexara-backend
+    restart: always
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - NEO4J_URI=bolt://neo4j:7687 # Internal network URI
+    depends_on:
+      - neo4j
+      - redis
+      - postgres
+
+  # Frontend Dashboard - React
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: nexara-frontend
+    restart: always
+    ports:
+      - "80:80"
+    environment:
+      - VITE_API_URL=http://localhost:8000
+    depends_on:
+      - backend
+
+  # Graph Database - Neo4j
+  neo4j:
+    image: neo4j:5.17.0
+    container_name: nexara-neo4j
+    ports:
+      - "7474:7474" # HTTP
+      - "7687:7687" # Bolt
+    environment:
+      - NEO4J_AUTH=${NEO4J_USER}/${NEO4J_PASSWORD}
+      - NEO4J_PLUGINS=["apoc"]
+    volumes:
+      - neo4j_data:/data
+      - neo4j_logs:/logs
+
+  # Caching Layer - Redis
+  redis:
+    image: redis:7.2-alpine
+    container_name: nexara-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  # Relational Metadata - PostgreSQL
+  postgres:
+    image: postgres:16-alpine
+    container_name: nexara-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=nexara
+      - POSTGRES_PASSWORD=nexara_pass
+      - POSTGRES_DB=nexara
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  neo4j_data:
+  neo4j_logs:
+  redis_data:
+  postgres_data:

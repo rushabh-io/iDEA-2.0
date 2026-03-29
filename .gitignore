@@ -1,0 +1,39 @@
+# Dependencies
+node_modules/
+.venv/
+env/
+venv/
+ENV/
+
+# Build
+dist/
+build/
+.next/
+out/
+
+# Environment Variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+backend/.env
+frontend/.env
+
+# Python caching
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# OS specific
+.DS_Store
+Thumbs.db
+
+# Project-specific
+*.log
+neo4j/data/
+docker-compose.override.yml
+backend/data/HI-Small_*
+backend/data/*.csv
+!backend/data/nexara_test_data.csv
