@@ -74,7 +74,7 @@ def generate_report(account_id: str):
     
     try:
         response = client.chat.completions.create(
-            model="llama3-70b-8192",
+            model="llama-3.1-70b-versatile",
             max_tokens=300,
             temperature=0.2,
             messages=[
