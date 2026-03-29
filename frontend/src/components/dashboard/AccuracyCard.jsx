@@ -185,22 +185,22 @@ const AccuracyCard = ({ metrics, isAnalysis = false }) => {
           {/* Suspicious row */}
           <div className="font-bold text-slate-700 flex items-center bg-white/80 rounded-xl px-4 py-3 border border-slate-200/60 shadow-sm backdrop-blur-sm">Suspicious</div>
           <div className="bg-gradient-to-br from-red-50 to-red-100/80 text-red-800 font-bold py-4 rounded-xl border border-red-200/60 text-center shadow-sm hover:shadow-md transition-shadow">
-            <div className="text-2xl">{metrics.confusion_matrix.tp.toLocaleString()}</div>
+            <div className="text-2xl">{metrics.confusion_matrix?.tp?.toLocaleString() || '0'}</div>
             <div className="text-xs font-semibold text-red-600/80 mt-1 uppercase tracking-wider">True Pos</div>
           </div>
           <div className="bg-gradient-to-br from-amber-50 to-amber-100/80 text-amber-800 font-bold py-4 rounded-xl border border-amber-200/60 text-center shadow-sm hover:shadow-md transition-shadow">
-            <div className="text-2xl">{metrics.confusion_matrix.fp.toLocaleString()}</div>
+            <div className="text-2xl">{metrics.confusion_matrix?.fp?.toLocaleString() || '0'}</div>
             <div className="text-xs font-semibold text-amber-600/80 mt-1 uppercase tracking-wider">False Pos</div>
           </div>
 
           {/* Benign row */}
           <div className="font-bold text-slate-700 flex items-center bg-white/80 rounded-xl px-4 py-3 border border-slate-200/60 shadow-sm backdrop-blur-sm">Benign</div>
           <div className="bg-gradient-to-br from-orange-50 to-orange-100/80 text-orange-800 font-bold py-4 rounded-xl border border-orange-200/60 text-center shadow-sm hover:shadow-md transition-shadow">
-            <div className="text-2xl">{metrics.confusion_matrix.fn.toLocaleString()}</div>
+            <div className="text-2xl">{metrics.confusion_matrix?.fn?.toLocaleString() || '0'}</div>
             <div className="text-xs font-semibold text-orange-600/80 mt-1 uppercase tracking-wider">False Neg</div>
           </div>
           <div className="bg-gradient-to-br from-emerald-50 to-emerald-100/80 text-emerald-800 font-bold py-4 rounded-xl border border-emerald-200/60 text-center shadow-sm hover:shadow-md transition-shadow">
-            <div className="text-2xl">{metrics.confusion_matrix.tn.toLocaleString()}</div>
+            <div className="text-2xl">{metrics.confusion_matrix?.tn?.toLocaleString() || '0'}</div>
             <div className="text-xs font-semibold text-emerald-600/80 mt-1 uppercase tracking-wider">True Neg</div>
           </div>
         </div>
@@ -208,8 +208,8 @@ const AccuracyCard = ({ metrics, isAnalysis = false }) => {
 
       {/* Summary footer */}
       <div className="mt-6 pt-5 border-t border-slate-200/50 text-sm font-medium text-slate-500 text-center">
-        Identified <span className="font-bold text-slate-800 bg-slate-100/80 px-2.5 py-1 rounded border border-slate-200 shadow-sm shadow-slate-200/50 mx-1">{metrics.confusion_matrix.tp.toLocaleString()}</span> laundering transactions
-        out of <span className="font-bold text-slate-800 bg-slate-100/80 px-2.5 py-1 rounded border border-slate-200 shadow-sm shadow-slate-200/50 mx-1">{metrics.total_laundering_in_dataset.toLocaleString()}</span> planted in the dataset.
+        Identified <span className="font-bold text-slate-800 bg-slate-100/80 px-2.5 py-1 rounded border border-slate-200 shadow-sm shadow-slate-200/50 mx-1">{metrics.confusion_matrix?.tp?.toLocaleString() || '0'}</span> laundering transactions
+        out of <span className="font-bold text-slate-800 bg-slate-100/80 px-2.5 py-1 rounded border border-slate-200 shadow-sm shadow-slate-200/50 mx-1">{(metrics.total_laundering_in_dataset || 0).toLocaleString()}</span> planted in the dataset.
       </div>
     </motion.div>
   );

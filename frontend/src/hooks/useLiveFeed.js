@@ -53,5 +53,9 @@ export const useLiveFeed = () => {
     setIsRunning(false);
   }, []);
 
-  return { isRunning, events, startSimulation, stopSimulation };
+  const clearEvents = useCallback(() => {
+    setEvents([]);
+  }, []);
+
+  return { isRunning, events, startSimulation, stopSimulation, clearEvents };
 };

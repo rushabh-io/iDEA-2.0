@@ -71,7 +71,7 @@ function App() {
     createAnalysisReport
   } = useAnalysisSession();
 
-  const { isRunning, events, startSimulation: startWSSimulation, stopSimulation: stopWSSimulation } = useLiveFeed();
+  const { isRunning, events, startSimulation: startWSSimulation, stopSimulation: stopWSSimulation, clearEvents } = useLiveFeed();
 
   // Determine active data source
   const activeGraph = analysisMode ? (analysisGraph || { nodes: [], edges: [] }) : graphData;
@@ -213,7 +213,12 @@ function App() {
 
   const renderInvestigation = () => (
     <div className="flex-1 flex overflow-hidden relative">
-      <LiveFeedPanel isRunning={isRunning} events={events} onStop={stopWSSimulation} />
+      <LiveFeedPanel 
+        isRunning={isRunning} 
+        events={events} 
+        onStop={stopWSSimulation} 
+        onClose={clearEvents}
+      />
       <div className="flex-1 flex flex-col relative">
         <GraphControls 
           activeView={activeView}

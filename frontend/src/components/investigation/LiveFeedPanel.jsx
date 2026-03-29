@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatCurrency } from '../../utils/formatters';
 
-const LiveFeedPanel = ({ isRunning, events, onStop }) => {
+const LiveFeedPanel = ({ isRunning, events, onStop, onClose }) => {
   const containerRef = useRef(null);
 
   useEffect(() => {
@@ -18,9 +18,9 @@ const LiveFeedPanel = ({ isRunning, events, onStop }) => {
       initial={{ opacity: 0, y: -20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.95 }}
-      className="absolute top-6 left-1/2 -translate-x-1/2 w-96 max-w-[90vw] z-[60] flex flex-col shadow-2xl rounded-2xl overflow-hidden border border-amber-500/30"
+      className="absolute top-6 left-1/2 -translate-x-1/2 w-96 max-w-[90vw] z-[60] flex flex-col shadow-2xl rounded-2xl overflow-hidden border border-amber-500/30 font-sans"
     >
-      <div className="bg-amber-500 text-white px-4 py-3 flex items-center justify-between shadow-sm">
+      <div className="bg-amber-500 text-white px-4 py-3 flex items-center justify-between shadow-sm relative">
         <div className="flex items-center gap-2">
           <span className="relative flex h-3 w-3">
             {isRunning && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>}
@@ -28,14 +28,25 @@ const LiveFeedPanel = ({ isRunning, events, onStop }) => {
           </span>
           <h3 className="font-bold text-sm tracking-wide">Live Attack Simulation</h3>
         </div>
-        {isRunning && (
+        <div className="flex items-center gap-2">
+          {isRunning && (
+            <button 
+              onClick={onStop}
+              className="text-xs font-bold bg-white/20 hover:bg-white/30 px-2.5 py-1 rounded transition-colors"
+            >
+              STOP
+            </button>
+          )}
           <button 
-            onClick={onStop}
-            className="text-xs font-bold bg-white/20 hover:bg-white/30 px-2.5 py-1 rounded transition-colors"
+            onClick={onClose}
+            className="p-1 hover:bg-white/20 rounded-lg transition-colors"
+            title="Close Panel"
           >
-            STOP
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+            </svg>
           </button>
-        )}
+        </div>
       </div>
 
       <div 
