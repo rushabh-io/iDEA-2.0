@@ -66,11 +66,30 @@ export default function UploadModal({ onClose, onImportComplete }) {
     setStep(3)
     setProgressStage('parsing')
 
+    // Create timing for progress stages
+    const stageTimers = []
+    const stageTiming = [
+      { stage: 'parsing', delay: 500 },
+      { stage: 'loading', delay: 1000 },
+      { stage: 'ownership', delay: 1500 },
+      { stage: 'detecting', delay: 2000 },
+    ]
+
     // Start actual import
     try {
       const mappingToSend = formatDetected === 'ibm' ? null : mapping
+      
+      // Set up stage progression
+      stageTiming.forEach(({ stage, delay }) => {
+        const timer = setTimeout(() => setProgressStage(stage), delay)
+        stageTimers.push(timer)
+      })
+
       const res = await importCSV(file, mappingToSend)
       const data = res.data || res
+
+      // Clear all timers
+      stageTimers.forEach(clearTimeout)
 
       setProgressStage('done')
       setImportResult({
