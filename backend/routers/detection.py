@@ -83,6 +83,18 @@ def run_all_detectors():
     
     summary = {k: len(v) for k, v in results.items()}
     
+    # Auto-create cases for top alerts
+    all_alerts = []
+    for pattern_type, pattern_alerts in results.items():
+        for alert in pattern_alerts:
+            # ensure standard structure
+            alert_copy = dict(alert)
+            alert_copy['type'] = pattern_type
+            all_alerts.append(alert_copy)
+            
+    from routers.cases import create_cases_from_detection_alerts
+    create_cases_from_detection_alerts(all_alerts)
+    
     return {
         "message": "All 15 detection algorithms completed",
         "total_alerts": total_alerts,

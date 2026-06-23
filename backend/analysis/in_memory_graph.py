@@ -1,3 +1,35 @@
+_TYPE_TO_PATTERN = {
+    'smurfing': 'SMURFING',
+    'circular_flow': 'CYCLE',
+    'fan_out': 'FAN-OUT',
+    'fan_in': 'FAN-IN',
+    'velocity': 'VELOCITY',
+    'anomaly': 'ANOMALY',
+    'bipartite': 'BIPARTITE',
+}
+
+_TYPE_TO_FLAG = {
+    'smurfing': 'SMURFING',
+    'circular_flow': 'CIRCULAR_FLOW',
+    'fan_out': 'FAN_OUT',
+    'fan_in': 'FAN_IN',
+    'velocity': 'VELOCITY',
+    'anomaly': 'ANOMALY',
+    'bipartite': 'BIPARTITE',
+}
+
+
+def _build_patterns(flag_types: list) -> list:
+    return [_TYPE_TO_PATTERN.get(f, f.upper()) for f in flag_types if f]
+
+
+def _primary_flag(flag_types: list) -> str:
+    for f in flag_types:
+        if f in _TYPE_TO_FLAG:
+            return _TYPE_TO_FLAG[f]
+    return ''
+
+
 def get_cytoscape_elements(session) -> dict:
     nodes = []
     edges = []
@@ -20,6 +52,11 @@ def get_cytoscape_elements(session) -> dict:
         risk = account_risk.get(acc_id, acc['risk_score'])
         flags = account_flags.get(acc_id, [])
         is_suspicious = acc['suspicious'] or risk > 0
+        patterns = _build_patterns(flags)
+        if acc.get('smurfing_flag'):
+            patterns = list(dict.fromkeys(patterns + ['SMURFING']))
+        if acc.get('circular_flow_flag'):
+            patterns = list(dict.fromkeys(patterns + ['CYCLE']))
 
         nodes.append({
             'data': {
@@ -31,11 +68,19 @@ def get_cytoscape_elements(session) -> dict:
                 'suspicious': is_suspicious,
                 'risk_score': risk,
                 'pep_connected': 'pep_network' in flags,
-                'velocity_flag': 'velocity' in flags,
-                'fan_out_flag': 'fan_out' in flags,
-                'fan_in_flag': 'fan_in' in flags,
-                'gather_scatter_flag': 'gather_scatter' in flags,
-                'codirector_flag': 'codirector' in flags,
+                'velocity_flag': 'velocity' in flags or acc.get('velocity_flag', False),
+                'fan_out_flag': 'fan_out' in flags or acc.get('fan_out_flag', False),
+                'fan_in_flag': 'fan_in' in flags or acc.get('fan_in_flag', False),
+                'gather_scatter_flag': 'gather_scatter' in flags or acc.get('gather_scatter_flag', False),
+                'codirector_flag': 'codirector' in flags or acc.get('codirector_flag', False),
+                'smurfing_flag': 'smurfing' in flags or acc.get('smurfing_flag', False),
+                'circular_flow_flag': 'circular_flow' in flags or acc.get('circular_flow_flag', False),
+                'anomaly_flag': 'anomaly' in flags or acc.get('anomaly_flag', False),
+                'patterns': patterns,
+                'flag': _primary_flag(flags) or (
+                    'SMURFING' if acc.get('smurfing_flag') else
+                    'CIRCULAR_FLOW' if acc.get('circular_flow_flag') else ''
+                ),
                 'type': 'Account',
                 'ml_risk_score': acc.get('ml_risk_score', 0),
                 'ml_prediction': acc.get('ml_prediction', 'UNKNOWN'),

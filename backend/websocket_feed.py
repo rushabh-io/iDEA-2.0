@@ -3,7 +3,7 @@ import json
 from datetime import datetime
 from fastapi import WebSocket, WebSocketDisconnect
 
-# The pre-scripted 5-hop round-trip attack sequence
+# Demo / Neo4j mode only — not used when Analysis Mode session is active
 ATTACK_SEQUENCE = [
     {
         "type": "transaction",
@@ -72,32 +72,69 @@ ATTACK_SEQUENCE = [
     }
 ]
 
+
+def _parse_start_message(raw: str) -> dict:
+    try:
+        payload = json.loads(raw)
+        if isinstance(payload, dict):
+            return payload
+    except json.JSONDecodeError:
+        pass
+    return {"action": "start", "mode": "demo"}
+
+
+def _resolve_sequence(mode: str, pattern: str) -> list:
+    if mode != "analysis":
+        return ATTACK_SEQUENCE
+
+    from analysis.session import get_session
+    from analysis.simulation_builder import build_analysis_attack_sequence
+
+    session = get_session()
+    if not session.active:
+        return []
+
+    if not session.detection_results:
+        return []
+
+    return build_analysis_attack_sequence(session, pattern_view=pattern)
+
+
 async def websocket_live_feed(websocket: WebSocket):
     await websocket.accept()
     print("WebSocket Client Connected to /ws/live")
     try:
-        # Wait for a start message from the client
-        data = await websocket.receive_text()
-        print(f"WS Received: {data}")
-        
-        # Start emitting the attack sequence every 6 seconds
-        for step in ATTACK_SEQUENCE:
-            # Add dynamic timestamp
-            step["timestamp"] = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
-            
-            # Send the step
-            await websocket.send_text(json.dumps(step))
-            
-            # Wait 6 seconds before sending the next one
+        raw = await websocket.receive_text()
+        print(f"WS Received: {raw}")
+
+        payload = _parse_start_message(raw)
+        mode = payload.get("mode", "demo")
+        pattern = payload.get("pattern", "all")
+        sequence = _resolve_sequence(mode, pattern)
+
+        if mode == "analysis" and not sequence:
+            await websocket.send_text(json.dumps({
+                "type": "error",
+                "message": (
+                    "No simulation path available for this pattern. "
+                    "Upload CSV, run analysis, and ensure the pattern is detected."
+                ),
+                "pattern": pattern,
+            }))
+            await websocket.send_text(json.dumps({"type": "sequence_complete"}))
+            return
+
+        for step in sequence:
+            event = dict(step)
+            event["timestamp"] = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+            await websocket.send_text(json.dumps(event))
             await asyncio.sleep(6)
-            
-        # Send a completion event
+
         await websocket.send_text(json.dumps({"type": "sequence_complete"}))
-        
-        # Keep connection open until client disconnects
+
         while True:
             await websocket.receive_text()
-            
+
     except WebSocketDisconnect:
         print("WebSocket Client Disconnected")
     except Exception as e:

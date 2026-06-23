@@ -62,6 +62,7 @@ def run_all_detectors(session) -> dict:
 
     _update_account_risk_scores(session, all_alerts)
     _flag_suspicious_transactions(session, circular)
+    _flag_smurfing_transactions(session, smurfing)
 
     return results
 
@@ -88,15 +89,24 @@ def _detect_circular(G: nx.DiGraph) -> list:
                     (40 if total > 500000 else 20 if total > 100000 else 0),
                     100
                 )
+                cycle_ids = [str(n) for n in cycle]
+                if len(cycle_ids) >= 2:
+                    joined = ', '.join(cycle_ids[:-1]) + f' and {cycle_ids[-1]}'
+                    desc = (
+                        f"{len(cycle_ids)}-node circular transaction loop detected "
+                        f"involving {joined}."
+                    )
+                else:
+                    desc = f"Circular flow detected involving {cycle_ids[0]}."
                 results.append({
                     'type': 'circular_flow',
-                    'cycle': cycle,
-                    'account_id': cycle[0],
-                    'hop_count': len(cycle),
+                    'cycle': cycle_ids,
+                    'account_id': cycle_ids[0],
+                    'hop_count': len(cycle_ids),
                     'total_amount': round(total, 2),
                     'risk_score': risk,
                     'ground_truth_confirmed': gt_confirmed,
-                    'description': f"${total:,.0f} circular flow across {len(cycle)} accounts"
+                    'description': desc,
                 })
     except Exception as e:
         print(f"Circular flow error: {e}")
@@ -109,13 +119,17 @@ def _detect_fan_out(G: nx.DiGraph, min_targets: int = 5) -> list:
         if len(out_neighbors) >= min_targets:
             total = sum(G[node][n].get('amount', 0) for n in out_neighbors)
             risk = min(30 + len(out_neighbors) * 8, 100)
+            acc = str(node)
             results.append({
                 'type': 'fan_out',
-                'account_id': node,
+                'account_id': acc,
                 'target_count': len(out_neighbors),
                 'total_amount': round(total, 2),
                 'risk_score': risk,
-                'description': f"Account {str(node)[:8]} sent to {len(out_neighbors)} different accounts"
+                'description': (
+                    f"{acc} dispersed funds to {len(out_neighbors)} destination accounts "
+                    f"within a short time window."
+                ),
             })
     return results
 
@@ -126,13 +140,17 @@ def _detect_fan_in(G: nx.DiGraph, min_sources: int = 5) -> list:
         if len(in_neighbors) >= min_sources:
             total = sum(G[n][node].get('amount', 0) for n in in_neighbors)
             risk = min(30 + len(in_neighbors) * 8, 100)
+            acc = str(node)
             results.append({
                 'type': 'fan_in',
-                'account_id': node,
+                'account_id': acc,
                 'source_count': len(in_neighbors),
                 'total_received': round(total, 2),
                 'risk_score': risk,
-                'description': f"Account {str(node)[:8]} received from {len(in_neighbors)} different accounts"
+                'description': (
+                    f"{acc} received funds from {len(in_neighbors)} source accounts "
+                    f"within a short time window."
+                ),
             })
     return results
 
@@ -150,14 +168,21 @@ def _detect_smurfing(df: pd.DataFrame) -> list:
     for acc_id, group in grouped:
         if len(group) >= 3:
             risk = min(40 + len(group) * 10, 100)
+            source = str(acc_id)
+            dest_counts = group['to_acc'].astype(str).value_counts()
+            primary_dest = dest_counts.index[0] if not dest_counts.empty else 'multiple accounts'
             results.append({
                 'type': 'smurfing',
-                'account_id': str(acc_id),
+                'account_id': source,
+                'primary_dest': primary_dest,
                 'transaction_count': len(group),
                 'amounts': group['amount'].tolist(),
                 'total_value': round(group['amount'].sum(), 2),
                 'risk_score': risk,
-                'description': f"{len(group)} transactions between $8,500–$9,999 from account {str(acc_id)[:8]}"
+                'description': (
+                    f"{len(group)} structured transactions below reporting threshold "
+                    f"detected from {source} to {primary_dest}."
+                ),
             })
     return results
 
@@ -239,7 +264,9 @@ def _detect_anomaly(df: pd.DataFrame) -> list:
                 'amount': round(float(row['amount']), 2),
                 'z_score': round(z, 2),
                 'risk_score': risk,
-                'description': f"${row['amount']:,.0f} is {z:.1f} standard deviations above network mean"
+                'description': (
+                    f"Transaction amount is {z:.1f} standard deviations above network average."
+                ),
             })
     return results[:100]
 
@@ -292,6 +319,35 @@ def _update_account_risk_scores(session, all_alerts: list) -> None:
             acc['fan_out_flag'] = 'fan_out' in flags
             acc['fan_in_flag'] = 'fan_in' in flags
             acc['gather_scatter_flag'] = 'gather_scatter' in flags
+            acc['smurfing_flag'] = 'smurfing' in flags
+            acc['circular_flow_flag'] = 'circular_flow' in flags
+            acc['anomaly_flag'] = 'anomaly' in flags
+
+def _flag_smurfing_transactions(session, smurfing_alerts: list) -> None:
+    if not smurfing_alerts:
+        return
+    smurf_sources = {str(a['account_id']) for a in smurfing_alerts}
+    risk_by_source = {str(a['account_id']): a.get('risk_score', 70) for a in smurfing_alerts}
+    LOWER = 8500
+    THRESHOLD = 10000
+    involved_accounts = set()
+
+    for txn in session.transactions:
+        src = str(txn['source'])
+        if src in smurf_sources and LOWER <= txn['amount'] < THRESHOLD:
+            txn['suspicious'] = True
+            txn['flag'] = 'SMURFING'
+            txn['risk_score'] = max(txn.get('risk_score', 0), risk_by_source.get(src, 70))
+            involved_accounts.add(src)
+            involved_accounts.add(str(txn['target']))
+
+    for acc in session.accounts:
+        acc_id = str(acc['id'])
+        if acc_id in involved_accounts:
+            acc['suspicious'] = True
+            acc['smurfing_flag'] = True
+            if acc_id in risk_by_source:
+                acc['risk_score'] = max(acc.get('risk_score', 0), risk_by_source[acc_id])
 
 def _flag_suspicious_transactions(session, circular_flows: list) -> None:
     suspicious_pairs = set()

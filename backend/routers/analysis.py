@@ -17,6 +17,7 @@ from analysis.ml_feature_extractor import extract_features_from_dataframe
 from analysis.ml_predictor import predict_on_features, is_model_available
 import json
 import numpy as np
+from pathlib import Path
 
 router = APIRouter()
 
@@ -215,6 +216,10 @@ def run_analysis():
             except Exception as e:
                 response['ml_error'] = f"ML prediction failed: {str(e)}"
 
+        # Auto-create cases for top alerts
+        from routers.cases import create_cases_from_detection_alerts
+        create_cases_from_detection_alerts(results.get('all_alerts', []))
+
         return _sanitize(response)
 
     except Exception as e:
@@ -222,6 +227,16 @@ def run_analysis():
             status_code=500,
             detail=f"Analysis failed: {str(e)}"
         )
+
+
+@router.get("/analysis/simulation-preview")
+def get_simulation_preview(pattern: str = "all"):
+    """Preview which graph entities will be used for live simulation."""
+    session = get_session()
+    if not session.active:
+        raise HTTPException(status_code=400, detail="No active session")
+    from analysis.simulation_builder import summarize_available_patterns
+    return _sanitize(summarize_available_patterns(session))
 
 
 @router.get("/analysis/graph")
@@ -386,3 +401,76 @@ All data is derived from '{session.filename}'.
 Neo4j permanent database was NOT consulted.
     """
     return {"report": report_text}
+
+
+def _load_demo_csv_session() -> dict:
+    """Load bundled nexara demo CSV into an analysis session."""
+    csv_path = Path(__file__).resolve().parent.parent / "data" / "nexara_test_data.csv"
+    if not csv_path.exists():
+        raise HTTPException(status_code=404, detail="Demo scenario data file not found.")
+
+    content = csv_path.read_bytes()
+    raw_df = read_transactions_table(csv_path.name, content)
+    std_df, metadata = standardize_transactions(raw_df)
+
+    start_session(
+        filename=csv_path.name,
+        std_df=std_df,
+        format_detected=metadata.resolved_fields.get("Timestamp", "auto"),
+        metadata=metadata.model_dump(),
+    )
+
+    session = get_session()
+    return {
+        'filename': csv_path.name,
+        'total_rows': metadata.record_count,
+        'accounts_found': session.stats.get('total_accounts', 0),
+        'fraud_rows': session.fraud_rows,
+        'has_labels': session.has_labels,
+    }
+
+
+@router.post("/analysis/demo-scenario/load")
+def load_demo_scenario():
+    """Load the bundled demo CSV, run detection, and auto-create cases."""
+    from analysis.session import backup_active_session
+    from routers.cases import create_cases_from_detection_alerts
+
+    backup_active_session()
+
+    upload_info = _load_demo_csv_session()
+    results = run_all_detectors(get_session())
+    set_detection_results(results)
+    created = create_cases_from_detection_alerts(results.get('all_alerts', []))
+
+    return _sanitize({
+        'success': True,
+        'session_started': True,
+        'demo_scenario': True,
+        'cases_created': created,
+        'total_alerts': results.get('total_alerts', 0),
+        'by_pattern': results.get('by_pattern', {}),
+        'message': (
+            f"Demo scenario loaded. {results.get('total_alerts', 0)} patterns detected, "
+            f"{created} cases created."
+        ),
+        **upload_info,
+    })
+
+
+@router.post("/analysis/demo-scenario/exit")
+def exit_demo_scenario():
+    """Exit demo scenario and restore the previous analysis session if any."""
+    from analysis.session import restore_active_session
+
+    restored = restore_active_session()
+    return _sanitize({
+        'success': True,
+        'restored_previous_session': restored,
+        'mode': 'analysis' if is_active() else 'normal',
+        'message': (
+            "Returned to previous analysis session."
+            if restored else
+            "Demo scenario ended. Returned to normal view."
+        ),
+    })

@@ -20,6 +20,7 @@ class AnalysisSession:
         self.fraud_rows: int = 0
         self.standardization_metadata: Optional[Dict] = None
         self.ml_predictions: Optional[Dict] = None
+        self.cases: List[Dict] = []
 
 
 _session = AnalysisSession()
@@ -68,6 +69,7 @@ def start_session(
     _session.detection_results = {}
     _session.stats = _compute_stats(internal_df)
     _session.ml_predictions = None
+    _session.cases = []
 
 
 def stop_session() -> None:
@@ -86,6 +88,7 @@ def stop_session() -> None:
     _session.fraud_rows = 0
     _session.standardization_metadata = None
     _session.ml_predictions = None
+    _session.cases = []
 
 
 def is_active() -> bool:
@@ -194,3 +197,56 @@ def _compute_stats(df: pd.DataFrame) -> Dict:
         'suspicious_volume': round(suspicious_volume, 2),
         'fraud_ratio_pct': round(fraud / total * 100, 2) if total > 0 else 0
     }
+
+
+_backup_session = None
+
+def backup_active_session():
+    global _backup_session
+    if _session.active:
+        _backup_session = {
+            'active': _session.active,
+            'filename': _session.filename,
+            'uploaded_at': _session.uploaded_at,
+            'df': _session.df.copy() if _session.df is not None else None,
+            'std_df': _session.std_df.copy() if _session.std_df is not None else None,
+            'accounts': list(_session.accounts),
+            'transactions': list(_session.transactions),
+            'detection_results': dict(_session.detection_results),
+            'stats': dict(_session.stats),
+            'format_detected': _session.format_detected,
+            'has_labels': _session.has_labels,
+            'total_rows': _session.total_rows,
+            'fraud_rows': _session.fraud_rows,
+            'standardization_metadata': dict(_session.standardization_metadata) if _session.standardization_metadata else None,
+            'ml_predictions': dict(_session.ml_predictions) if _session.ml_predictions else None,
+            'cases': list(_session.cases)
+        }
+    else:
+        _backup_session = None
+
+def restore_active_session() -> bool:
+    global _backup_session
+    if _backup_session is not None:
+        _session.active = _backup_session['active']
+        _session.filename = _backup_session['filename']
+        _session.uploaded_at = _backup_session['uploaded_at']
+        _session.df = _backup_session['df']
+        _session.std_df = _backup_session['std_df']
+        _session.accounts = _backup_session['accounts']
+        _session.transactions = _backup_session['transactions']
+        _session.detection_results = _backup_session['detection_results']
+        _session.stats = _backup_session['stats']
+        _session.format_detected = _backup_session['format_detected']
+        _session.has_labels = _backup_session['has_labels']
+        _session.total_rows = _backup_session['total_rows']
+        _session.fraud_rows = _backup_session['fraud_rows']
+        _session.standardization_metadata = _backup_session['standardization_metadata']
+        _session.ml_predictions = _backup_session['ml_predictions']
+        if hasattr(_session, 'cases'):
+            _session.cases = _backup_session['cases']
+        _backup_session = None
+        return True
+    else:
+        stop_session()
+        return False
