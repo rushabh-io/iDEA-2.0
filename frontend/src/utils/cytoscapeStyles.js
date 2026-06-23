@@ -159,5 +159,20 @@ export const cytoscapeStyles = [
       'line-style': 'dashed',
       'z-index': 100
     }
+  },
+  {
+    selector: '.faded',
+    style: {
+      'opacity': 0.15,
+      'events': 'no'
+    }
+  },
+  {
+    selector: '.highlighted-filter',
+    style: {
+      'border-width': 4,
+      'border-color': '#fbbf24',
+      'z-index': 99
+    }
   }
 ];

@@ -1,33 +1,50 @@
+/** Indian-style grouping: 95000 -> "95,000", 1234567 -> "12,34,567" */
+export function formatIndianCommas(num) {
+  const n = Math.floor(Math.abs(Number(num) || 0));
+  const str = String(n);
+  if (str.length <= 3) return str;
+  const lastThree = str.slice(-3);
+  let remaining = str.slice(0, -3);
+  const groups = [];
+  while (remaining.length > 0) {
+    if (remaining.length <= 2) {
+      groups.unshift(remaining);
+      remaining = '';
+    } else {
+      groups.unshift(remaining.slice(-2));
+      remaining = remaining.slice(0, -2);
+    }
+  }
+  return `${groups.join(',')},${lastThree}`;
+}
+
+/**
+ * Unified Indian currency formatter.
+ * < 1,00,000  => Rs 95,000
+ * 1L - 99L    => Rs 4.70L
+ * 1Cr+        => Rs 1.80Cr
+ */
 export const formatCurrency = (amount) => {
   if (amount === undefined || amount === null) return 'Rs 0';
-  
-  // Format as Indian Rupees with proper notation
-  const absAmount = Math.abs(amount);
+
+  const numeric = Number(amount);
+  const negative = numeric < 0;
+  const absAmount = Math.abs(numeric);
   let formatted;
-  
+
   if (absAmount >= 10000000) {
-    // >= 1 Crore, show in Cr
-    formatted = (absAmount / 10000000).toFixed(2) + 'Cr';
+    formatted = `${(Math.floor(absAmount / 100000) / 100).toFixed(2)}Cr`;
   } else if (absAmount >= 100000) {
-    // >= 1 Lakh, show in L
-    formatted = (absAmount / 100000).toFixed(2) + 'L';
-  } else if (absAmount >= 1000) {
-    // Format with commas in Indian style (e.g., 12,34,567)
-    const numStr = Math.floor(absAmount).toString();
-    let formatted_num = '';
-    for (let i = numStr.length - 1, count = 0; i >= 0; i--, count++) {
-      if (count > 0 && count % 2 === 0 && count !== numStr.length) {
-        formatted_num = ',' + formatted_num;
-      }
-      formatted_num = numStr[i] + formatted_num;
-    }
-    formatted = formatted_num;
+    formatted = `${(Math.floor(absAmount / 1000) / 100).toFixed(2)}L`;
   } else {
-    formatted = Math.floor(absAmount).toString();
+    formatted = formatIndianCommas(absAmount);
   }
-  
-  return amount < 0 ? `-Rs ${formatted}` : `Rs ${formatted}`;
+
+  return negative ? `-Rs ${formatted}` : `Rs ${formatted}`;
 };
+
+/** Alias used by case title helpers — same rules as formatCurrency */
+export const formatCaseAmount = formatCurrency;
 
 export const formatDate = (dateString) => {
   if (!dateString) return 'Unknown';

@@ -1,7 +1,7 @@
 import axios from 'axios';
 import {
   mockGraph, mockStats, mockValidation, mockAlerts,
-  mockCases, mockDetectionResults
+  mockDetectionResults
 } from '../data/mockData';
 
 // ════════════════════════════════════════
@@ -69,8 +69,8 @@ export const simulateLiveTransaction = async (nodes) => {
   // Pick two random nodes
   const sourceNode = nodes[Math.floor(Math.random() * nodes.length)];
   let targetNode = nodes[Math.floor(Math.random() * nodes.length)];
-  while(targetNode.data.id === sourceNode.data.id) {
-     targetNode = nodes[Math.floor(Math.random() * nodes.length)];
+  while (targetNode.data.id === sourceNode.data.id) {
+    targetNode = nodes[Math.floor(Math.random() * nodes.length)];
   }
 
   const amount = Math.floor(Math.random() * 5000000) + 1000;
@@ -146,37 +146,86 @@ export const getSAR = (id) =>
     { account_id: id, sar_text: `SUSPICIOUS ACTIVITY REPORT\n\nFiling Institution: Nexara AML Intelligence\nSubject: Account ${id}\nActivity Type: Potential Structuring / Layering\n\nNarrative: Initial analysis flags unusual transaction velocity and cross-border patterns. Full investigation recommended.\n\nAmount Involved: Under review\nDate Range: Last 90 days\nRecommended Action: Escalate to Compliance Officer for formal SAR filing.`, generated_at: 'Mock' }
   );
 
+// In-memory cases only used when backend is unreachable (offline dev)
+const offlineCases = [];
+
+const ACTIVE_CASE_STATUSES = new Set(['OPEN', 'INVESTIGATING']);
+
+function normalizePatternKey(patternType) {
+  const pk = String(patternType || 'anomaly').toLowerCase();
+  if (pk.includes('circular') || pk.includes('cycle')) return 'circular_flow';
+  if (pk.includes('smurf')) return 'smurfing';
+  if (pk.includes('fan_out') || pk.includes('fanout')) return 'fan_out';
+  if (pk.includes('fan_in') || pk.includes('fanin')) return 'fan_in';
+  if (pk.includes('velocity') || pk.includes('geo')) return 'geo_velocity';
+  if (pk.includes('anomaly')) return 'anomaly';
+  return pk;
+}
+
+function findActiveOfflineCase(patternType, accountId) {
+  const norm = normalizePatternKey(patternType);
+  return offlineCases.find(
+    (c) =>
+      ACTIVE_CASE_STATUSES.has(c.status)
+      && String(c.account_id) === String(accountId)
+      && normalizePatternKey(c.pattern_type) === norm
+  );
+}
+
 export const getCases = () =>
   liveOrMock(
     () => api.get('/api/cases').then(res => res.data),
-    mockCases
+    offlineCases
   );
 
 export const openCase = (data) => {
-  const newId = 'CASE_NEW_' + Date.now().toString().slice(-6);
-  const newCase = {
-    id: newId,
-    title: data.title || 'New Investigation',
-    status: 'OPEN',
-    priority: data.priority || 'Medium',
-    assigned_to: data.assigned_to || 'Investigator_1',
-    notes: data.notes || '',
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-    account_id: data.account_id || 'Unknown'
-  };
-  mockCases.unshift(newCase); // Add to local mock array so it persists in UI
-
   return liveOrMock(
     () => api.post('/api/cases', data).then(res => res.data),
-    { case_id: newId, status: 'OPEN' }
+    () => {
+      const isAuto = data.assigned_to === 'Simulation Engine' || data.assigned_to === 'System Detection';
+      const patternType = data.pattern_type || 'anomaly';
+
+      if (isAuto) {
+        const existing = findActiveOfflineCase(patternType, data.account_id);
+        if (existing) {
+          existing.title = data.title || existing.title;
+          existing.priority = data.priority || existing.priority;
+          existing.updated_at = new Date().toISOString();
+          if (data.notes && !(existing.notes || '').includes(data.notes)) {
+            existing.notes = existing.notes ? `${existing.notes}\n\n${data.notes}` : data.notes;
+          }
+          return { case_id: existing.id, status: existing.status, title: existing.title };
+        }
+      }
+
+      const newId = 'CASE_OFFLINE_' + Date.now().toString().slice(-6);
+      const newCase = {
+        id: newId,
+        title: data.title || 'Anomaly Detection — Unknown — Rs 1.00L',
+        status: 'OPEN',
+        priority: data.priority || 'Medium',
+        assigned_to: data.assigned_to || 'Investigator_1',
+        notes: data.notes || '',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        account_id: data.account_id || 'Unknown',
+        pattern_type: patternType,
+        source: data.assigned_to === 'Simulation Engine' ? 'simulation' : data.assigned_to === 'System Detection' ? 'detection' : 'manual',
+      };
+      offlineCases.unshift(newCase);
+      return { case_id: newId, status: 'OPEN', title: newCase.title };
+    }
   );
 };
 
 export const updateCase = (id, data) => {
-  const caseIndex = mockCases.findIndex(c => c.id === id);
+  const caseIndex = offlineCases.findIndex(c => c.id === id);
   if (caseIndex !== -1) {
-    mockCases[caseIndex] = { ...mockCases[caseIndex], ...data, updated_at: new Date().toISOString() };
+    offlineCases[caseIndex] = {
+      ...offlineCases[caseIndex],
+      ...data,
+      updated_at: new Date().toISOString()
+    };
   }
 
   return liveOrMock(
@@ -188,7 +237,13 @@ export const updateCase = (id, data) => {
 export const getCaseStats = () =>
   liveOrMock(
     () => api.get('/api/cases/stats').then(res => res.data),
-    { OPEN: 2, INVESTIGATING: 1, CLOSED: 0, ESCALATED: 1 }
+    () => {
+      const stats = { OPEN: 0, INVESTIGATING: 0, CLOSED: 0, ESCALATED: 0 };
+      offlineCases.forEach((c) => {
+        if (stats[c.status] !== undefined) stats[c.status] += 1;
+      });
+      return stats;
+    }
   );
 
 export const trainModel = () =>
@@ -212,11 +267,13 @@ export const getMLPrediction = (id) =>
 export const getShapExplanation = (id) =>
   liveOrMock(
     () => api.get(`/api/ml/explain/${id}`).then(res => res.data),
-    { explanation: [
-      { feature: 'out_degree', shap_value: 0.15 },
-      { feature: 'amount_ratio', shap_value: 0.08 },
-      { feature: 'fan_out', shap_value: 0.05 }
-    ] }
+    {
+      explanation: [
+        { feature: 'out_degree', shap_value: 0.15 },
+        { feature: 'amount_ratio', shap_value: 0.08 },
+        { feature: 'fan_out', shap_value: 0.05 }
+      ]
+    }
   );
 
 export const sendCopilotMessage = (body) =>
@@ -228,7 +285,7 @@ export const sendCopilotMessage = (body) =>
 export const getFIUReport = (id) =>
   liveOrMock(
     () => api.post(`/api/reports/fiu/${id}`).then(res => res.data),
-    { 
+    {
       goaml_xml: "<str><subject><account_id>" + id + "</account_id></subject></str>",
       narrative: "Mock FIU narrative generated."
     }
@@ -315,3 +372,9 @@ export const getAnalysisOwnership = (id) =>
 
 export const createAnalysisReport = (id) =>
   api.post(`/api/analysis/reports/${id}`);
+
+export const loadDemoScenario = () =>
+  api.post('/api/analysis/demo-scenario/load').then(res => res.data);
+
+export const exitDemoScenario = () =>
+  api.post('/api/analysis/demo-scenario/exit').then(res => res.data);

@@ -6,7 +6,7 @@ import { cytoscapeStyles } from '../../utils/cytoscapeStyles';
 import { formatCurrency } from '../../utils/formatters';
 import TimeLapse from './TimeLapse';
 
-const GraphCanvas = ({ graphData, onNodeClick, activeView = 'all', searchQuery = '', graphAction = null, isLive = false, liveEvents = [], onLiveToggle = null }) => {
+const GraphCanvas = ({ graphData, onNodeClick, activeView = 'all', searchQuery = '', graphAction = null, isLive = false, liveEvents = [], onLiveToggle = null, analysisMode = false }) => {
   const cyRef = useRef(null);
   const [timeProgress, setTimeProgress] = useState(100);
 
@@ -15,7 +15,7 @@ const GraphCanvas = ({ graphData, onNodeClick, activeView = 'all', searchQuery =
     if (!graphData || !graphData.nodes || graphData.nodes.length === 0) return;
     if (!cyRef.current) return;
     const cy = cyRef.current;
-    
+
     // Add tooltip div if it doesn't exist
     let tooltip = document.getElementById('cy-tooltip');
     if (!tooltip) {
@@ -38,12 +38,12 @@ const GraphCanvas = ({ graphData, onNodeClick, activeView = 'all', searchQuery =
       tooltip.style.transition = 'opacity 0.2s ease';
       document.body.appendChild(tooltip);
     }
-    
+
     // Node hover
     cy.on('mouseover', 'node', (e) => {
       const node = e.target;
       const data = node.data();
-      
+
       let html = `<div class="font-bold text-[13px] mb-1.5 tracking-tight text-slate-800">${data.id}</div>`;
       if (data.type === 'Person') {
         html += `<div class="text-slate-500 font-medium mb-1">${data.name || ''}</div>`;
@@ -60,17 +60,17 @@ const GraphCanvas = ({ graphData, onNodeClick, activeView = 'all', searchQuery =
       tooltip.style.left = e.originalEvent.pageX + 15 + 'px';
       tooltip.style.top = e.originalEvent.pageY + 15 + 'px';
     });
-    
+
     cy.on('mouseout', 'node', () => {
       tooltip.style.display = 'none';
       tooltip.style.opacity = '0';
     });
-    
+
     // Edge hover
     cy.on('mouseover', 'edge', (e) => {
       const edge = e.target;
       const data = edge.data();
-      
+
       let html = "";
       if (data.rel_type === 'TRANSACTION') {
         html = `
@@ -79,9 +79,9 @@ const GraphCanvas = ({ graphData, onNodeClick, activeView = 'all', searchQuery =
           ${data.flag ? `<div class="text-red-700 mt-2 font-bold bg-red-100/80 border border-red-200 inline-block px-1.5 py-0.5 rounded shadow-sm text-[10px] uppercase">${data.flag}</div>` : ''}
         `;
       } else if (data.rel_type === 'OWNS') {
-         html = `<div class="font-extrabold text-[13px] text-slate-800">${data.percentage}% <span class="text-slate-500 font-medium">Ownership</span></div>`;
+        html = `<div class="font-extrabold text-[13px] text-slate-800">${data.percentage}% <span class="text-slate-500 font-medium">Ownership</span></div>`;
       } else {
-         html = `<div class="font-bold text-[13px] text-slate-700">${data.role || 'Director'}</div>`;
+        html = `<div class="font-bold text-[13px] text-slate-700">${data.role || 'Director'}</div>`;
       }
 
       tooltip.innerHTML = html;
@@ -90,38 +90,38 @@ const GraphCanvas = ({ graphData, onNodeClick, activeView = 'all', searchQuery =
       tooltip.style.left = e.originalEvent.pageX + 15 + 'px';
       tooltip.style.top = e.originalEvent.pageY + 15 + 'px';
     });
-    
+
     cy.on('mouseout', 'edge', () => {
       tooltip.style.display = 'none';
       tooltip.style.opacity = '0';
     });
-    
+
     cy.on('mousemove', (e) => {
-       if(tooltip.style.display === 'block') {
-           tooltip.style.left = e.originalEvent.pageX + 15 + 'px';
-           tooltip.style.top = e.originalEvent.pageY + 15 + 'px';
-       }
+      if (tooltip.style.display === 'block') {
+        tooltip.style.left = e.originalEvent.pageX + 15 + 'px';
+        tooltip.style.top = e.originalEvent.pageY + 15 + 'px';
+      }
     });
 
     // Node Click
     cy.on('tap', 'node', (e) => {
       const nodeData = e.target.data();
-      if(onNodeClick) {
+      if (onNodeClick) {
         onNodeClick(nodeData);
       }
-      
+
       // Highlight neighbors
       cy.elements().removeClass('highlighted');
       e.target.neighborhood('edge').addClass('highlighted');
     });
-    
+
     cy.on('tap', (e) => {
       if (e.target === cy) {
-        if(onNodeClick) onNodeClick(null);
+        if (onNodeClick) onNodeClick(null);
         cy.elements().removeClass('highlighted');
       }
     });
-    
+
     return () => {
       cy.removeAllListeners();
     };
@@ -131,12 +131,166 @@ const GraphCanvas = ({ graphData, onNodeClick, activeView = 'all', searchQuery =
   useEffect(() => {
     if (!cyRef.current) return;
     const cy = cyRef.current;
-    
-    // First, make everything visible
-    cy.elements().removeClass('hidden');
-    
-    if (activeView === 'all') {
-      // Nothing to hide based on view
+
+    // First, reset all visibility and fade/highlight classes
+    cy.elements().removeClass('hidden').removeClass('faded').removeClass('highlighted-filter');
+
+    const isPatternView = ['circular_flow', 'smurfing', 'dormant_acct', 'fan_out', 'banker_collusion', 'geo_velocity'].includes(activeView);
+
+    if (isPatternView) {
+      const isMatchingNode = (node) => {
+        const data = node.data();
+        switch (activeView) {
+          case 'circular_flow':
+            return data.flag === 'CIRCULAR_FLOW' ||
+              data.flag === 'circular_flow' ||
+              data.patterns?.includes('CYCLE') ||
+              data.circular_flow_flag === true;
+          case 'smurfing':
+            return data.flag === 'SMURFING' ||
+              data.flag === 'smurfing' ||
+              data.patterns?.includes('SMURFING') ||
+              data.smurfing_flag === true;
+          case 'dormant_acct':
+            return data.is_dormant === true ||
+              data.layering_score === 2 ||
+              (data.type === 'Account' && data.bank === 'Deutsche Bank' && !data.suspicious);
+          case 'fan_out':
+            return data.fan_out_flag === true ||
+              data.patterns?.includes('FAN-OUT') ||
+              data.flag === 'FAN_OUT' ||
+              data.flag === 'fan_out';
+          case 'banker_collusion':
+            return data.codirector_flag === true ||
+              data.pep_connected === true ||
+              data.patterns?.includes('CODIRECTOR') ||
+              data.pep === true;
+          case 'geo_velocity':
+            return data.velocity_flag === true ||
+              data.patterns?.includes('VELOCITY');
+          default:
+            return true;
+        }
+      };
+
+      const isMatchingEdge = (edge) => {
+        const data = edge.data();
+        const source = edge.source().data();
+        const target = edge.target().data();
+
+        const nodeMatchesPattern = (nodeData, view) => {
+          switch (view) {
+            case 'circular_flow':
+              return nodeData.flag === 'CIRCULAR_FLOW' ||
+                nodeData.flag === 'circular_flow' ||
+                nodeData.patterns?.includes('CYCLE') ||
+                nodeData.circular_flow_flag === true;
+            case 'smurfing':
+              return nodeData.flag === 'SMURFING' ||
+                nodeData.flag === 'smurfing' ||
+                nodeData.patterns?.includes('SMURFING') ||
+                nodeData.smurfing_flag === true;
+            case 'dormant_acct':
+              return nodeData.is_dormant === true ||
+                nodeData.layering_score === 2 ||
+                (nodeData.type === 'Account' && nodeData.bank === 'Deutsche Bank' && !nodeData.suspicious);
+            case 'fan_out':
+              return nodeData.fan_out_flag === true ||
+                nodeData.patterns?.includes('FAN-OUT') ||
+                nodeData.flag === 'FAN_OUT' ||
+                nodeData.flag === 'fan_out';
+            case 'banker_collusion':
+              return nodeData.codirector_flag === true ||
+                nodeData.pep_connected === true ||
+                nodeData.patterns?.includes('CODIRECTOR') ||
+                nodeData.pep === true;
+            case 'geo_velocity':
+              return nodeData.velocity_flag === true ||
+                nodeData.patterns?.includes('VELOCITY');
+            default:
+              return true;
+          }
+        };
+
+        const sourceMatches = nodeMatchesPattern(source, activeView);
+        const targetMatches = nodeMatchesPattern(target, activeView);
+
+        switch (activeView) {
+          case 'circular_flow':
+            return data.flag === 'CIRCULAR_FLOW' ||
+              data.flag === 'circular_flow' ||
+              (sourceMatches && targetMatches && data.rel_type === 'TRANSACTION');
+          case 'smurfing':
+            return data.flag === 'SMURFING' ||
+              data.flag === 'smurfing' ||
+              (sourceMatches && data.rel_type === 'TRANSACTION');
+          case 'dormant_acct':
+            return (sourceMatches || targetMatches) && data.rel_type === 'TRANSACTION';
+          case 'fan_out':
+            return sourceMatches && data.rel_type === 'TRANSACTION';
+          case 'banker_collusion':
+            return data.rel_type === 'DIRECTOR_OF' || data.rel_type === 'OWNS' || sourceMatches || targetMatches;
+          case 'geo_velocity':
+            return (sourceMatches || targetMatches) && data.rel_type === 'TRANSACTION';
+          default:
+            return true;
+        }
+      };
+
+      // Apply fade/highlight classes
+      let nodeMatches = 0;
+      let edgeMatches = 0;
+      const smurfAttrNodes = [];
+
+      cy.nodes().forEach(node => {
+        const data = node.data();
+        if (activeView === 'smurfing' && (
+          data.smurfing_flag || data.flag || data.patterns?.length
+        )) {
+          smurfAttrNodes.push({
+            id: data.id,
+            smurfing_flag: data.smurfing_flag,
+            flag: data.flag,
+            patterns: data.patterns,
+            circular_flow_flag: data.circular_flow_flag,
+            anomaly_flag: data.anomaly_flag,
+          });
+        }
+        if (isMatchingNode(node)) {
+          node.addClass('highlighted-filter');
+          nodeMatches++;
+        } else {
+          node.addClass('faded');
+        }
+      });
+
+      cy.edges().forEach(edge => {
+        if (isMatchingEdge(edge)) {
+          edge.addClass('highlighted-filter');
+          edgeMatches++;
+        } else {
+          edge.addClass('faded');
+        }
+      });
+
+      if (activeView === 'smurfing') {
+        console.group('[GraphCanvas] Smurfing filter debug');
+        console.log('Total nodes:', cy.nodes().length);
+        console.log('Total edges:', cy.edges().length);
+        console.log('Nodes with smurfing-related attributes:', smurfAttrNodes.length, smurfAttrNodes);
+        console.log('Node matches (highlighted):', nodeMatches);
+        console.log('Edge matches (highlighted):', edgeMatches);
+        console.log('Filter condition: flag===SMURFING | flag===smurfing | patterns includes SMURFING | smurfing_flag===true');
+        console.log('Sample node data (first 3):', cy.nodes().slice(0, 3).map(n => n.data()));
+        console.log('Sample edge flags:', cy.edges().slice(0, 5).map(e => ({
+          id: e.id(),
+          flag: e.data('flag'),
+          source: e.data('source'),
+          target: e.data('target'),
+        })));
+        console.groupEnd();
+      }
+
     } else if (activeView === 'suspicious') {
       // Hide nodes that aren't suspicious UNLESS they are connected to a suspicious node
       cy.nodes().forEach(node => {
@@ -171,7 +325,7 @@ const GraphCanvas = ({ graphData, onNodeClick, activeView = 'all', searchQuery =
       const edges = cy.edges();
       const numEdges = edges.length;
       const threshold = (timeProgress / 100) * numEdges;
-      
+
       edges.forEach((edge, i) => {
         if (i > threshold) {
           edge.addClass('hidden');
@@ -192,7 +346,7 @@ const GraphCanvas = ({ graphData, onNodeClick, activeView = 'all', searchQuery =
   useEffect(() => {
     if (!cyRef.current || !isLive || !liveEvents || liveEvents.length === 0) return;
     const cy = cyRef.current;
-    
+
     const latestEvent = liveEvents[liveEvents.length - 1];
     if (!latestEvent) return;
 
@@ -200,70 +354,86 @@ const GraphCanvas = ({ graphData, onNodeClick, activeView = 'all', searchQuery =
     const targetId = latestEvent.to_account;
     const edgeId = latestEvent.txn_id || `edge_${Date.now()}`;
 
-    // Add source if missing
-    if (sourceId && cy.getElementById(sourceId).length === 0) {
-      cy.add({ group: 'nodes', data: { id: sourceId, label: sourceId.slice(-6), type: 'Account', bank: 'Unknown' }, classes: 'live-node' });
-    } else if (sourceId) {
-      cy.getElementById(sourceId).addClass('live-node');
-    }
+    const sourceNode = sourceId ? cy.getElementById(sourceId) : null;
+    const targetNode = targetId ? cy.getElementById(targetId) : null;
 
-    // Add target if missing
-    if (targetId && cy.getElementById(targetId).length === 0) {
-      cy.add({ group: 'nodes', data: { id: targetId, label: targetId.slice(-6), type: 'Account', bank: 'Unknown' }, classes: 'live-node' });
-    } else if (targetId) {
-       cy.getElementById(targetId).addClass('live-node');
-    }
-    
-    // Add edge
-    if (sourceId && targetId && cy.getElementById(edgeId).length === 0) {
-      cy.add({
-        group: 'edges',
-        data: {
-          id: edgeId,
-          source: sourceId,
-          target: targetId,
-          amount: latestEvent.amount,
-          rel_type: 'TRANSACTION',
-          is_suspicious: latestEvent.is_suspicious,
-          flag: latestEvent.detection_fired
-        },
-        classes: latestEvent.is_suspicious ? 'live-edge suspicious' : 'live-edge'
-      });
-      
-      // Animate edge color
-      const edge = cy.getElementById(edgeId);
-      edge.animate({
-        style: { 
-          'line-color': latestEvent.is_suspicious ? '#ef4444' : '#10b981', 
-          'target-arrow-color': latestEvent.is_suspicious ? '#ef4444' : '#10b981' 
-        }
-      }, { duration: 800 });
-      
-      // Center newly added nodes softly
-      if (liveEvents.length === 1 || latestEvent.is_suspicious) {
-          cy.animate({
-              center: { eles: edge },
-              duration: 500
-          });
+    if (analysisMode) {
+      if (!sourceId || !targetId || sourceNode.length === 0 || targetNode.length === 0) {
+        console.warn(
+          '[GraphCanvas] Analysis simulation skipped — account not in uploaded graph:',
+          { sourceId, targetId, sourceFound: sourceNode.length > 0, targetFound: targetNode.length > 0 }
+        );
+        return;
+      }
+      sourceNode.addClass('live-node');
+      targetNode.addClass('live-node');
+    } else {
+      // Demo mode: allow injecting placeholder nodes for hardcoded demo sequence
+      if (sourceId && sourceNode.length === 0) {
+        cy.add({ group: 'nodes', data: { id: sourceId, label: sourceId.slice(-6), type: 'Account', bank: 'Unknown' }, classes: 'live-node' });
+      } else if (sourceId) {
+        sourceNode.addClass('live-node');
+      }
+
+      if (targetId && targetNode.length === 0) {
+        cy.add({ group: 'nodes', data: { id: targetId, label: targetId.slice(-6), type: 'Account', bank: 'Unknown' }, classes: 'live-node' });
+      } else if (targetId) {
+        targetNode.addClass('live-node');
       }
     }
-  }, [liveEvents, isLive]);
+
+    // Add or highlight edge
+    if (sourceId && targetId) {
+      let edge = cy.getElementById(edgeId);
+      if (edge.length === 0) {
+        edge = cy.add({
+          group: 'edges',
+          data: {
+            id: edgeId,
+            source: sourceId,
+            target: targetId,
+            amount: latestEvent.amount,
+            rel_type: 'TRANSACTION',
+            is_suspicious: latestEvent.is_suspicious,
+            flag: latestEvent.detection_fired
+          },
+          classes: latestEvent.is_suspicious ? 'live-edge suspicious' : 'live-edge'
+        });
+      } else {
+        edge.addClass(latestEvent.is_suspicious ? 'live-edge suspicious' : 'live-edge');
+      }
+
+      edge.animate({
+        style: {
+          'line-color': latestEvent.is_suspicious ? '#ef4444' : '#10b981',
+          'target-arrow-color': latestEvent.is_suspicious ? '#ef4444' : '#10b981'
+        }
+      }, { duration: 800 });
+
+      if (liveEvents.length === 1 || latestEvent.is_suspicious) {
+        cy.animate({
+          center: { eles: edge },
+          duration: 500
+        });
+      }
+    }
+  }, [liveEvents, isLive, analysisMode]);
 
   // --- Handle Search ---
   useEffect(() => {
     if (!cyRef.current || !searchQuery) return;
     const cy = cyRef.current;
-    
+
     const target = cy.getElementById(searchQuery.trim());
     if (target.length > 0) {
       // Clear previous
       cy.elements().removeClass('highlighted');
-      
+
       // Select & highlight
       target.select();
       target.addClass('highlighted');
       target.neighborhood('edge').addClass('highlighted');
-      
+
       // Pan and zoom to node
       cy.animate({
         center: { eles: target },
@@ -271,7 +441,7 @@ const GraphCanvas = ({ graphData, onNodeClick, activeView = 'all', searchQuery =
         duration: 500,
         easing: 'ease-out-cubic'
       });
-      
+
       // Trigger click to show details
       if (onNodeClick) onNodeClick(target.data());
     } else {
@@ -283,7 +453,7 @@ const GraphCanvas = ({ graphData, onNodeClick, activeView = 'all', searchQuery =
   useEffect(() => {
     if (!cyRef.current || !graphAction) return;
     const cy = cyRef.current;
-    
+
     if (graphAction.type === 'zoom') {
       cy.animate({
         zoom: cy.zoom() * (1 + graphAction.value),
@@ -301,7 +471,7 @@ const GraphCanvas = ({ graphData, onNodeClick, activeView = 'all', searchQuery =
   if (!graphData || !graphData.nodes || graphData.nodes.length === 0) {
     return (
       <div className="flex-1 w-full bg-slate-50 flex items-center justify-center h-full relative overflow-hidden">
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, scale: 0.95, y: 10 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
@@ -321,16 +491,16 @@ const GraphCanvas = ({ graphData, onNodeClick, activeView = 'all', searchQuery =
 
   return (
     <div className="flex-1 w-full bg-slate-50/50 relative overflow-hidden">
-      <CytoscapeComponent 
-        elements={CytoscapeComponent.normalizeElements(graphData)} 
+      <CytoscapeComponent
+        elements={CytoscapeComponent.normalizeElements(graphData)}
         style={{ width: '100%', height: '100%' }}
         layout={{ name: 'cose', animate: false, randomize: true, nodeRepulsion: 400000, idealEdgeLength: 60 }}
         stylesheet={cytoscapeStyles}
         cy={(cy) => { cyRef.current = cy; }}
       />
-      
+
       {/* Legend Overlay */}
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, x: -20 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.6, delay: 0.2 }}

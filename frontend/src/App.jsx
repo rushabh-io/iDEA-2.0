@@ -29,12 +29,13 @@ function App() {
   const [hasEntered, setHasEntered] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [casesLastUpdated, setCasesLastUpdated] = useState(Date.now());
+  const bumpCasesRefresh = () => setCasesLastUpdated(Date.now());
   const [detecting, setDetecting] = useState(false);
   const [graphData, setGraphData] = useState({ nodes: [], edges: [] });
   const [stats, setStats] = useState(null);
   const [metrics, setMetrics] = useState(null);
   const [alerts, setAlerts] = useState([]);
-  
+
   const [selectedEntity, setSelectedEntity] = useState(null);
   const [showReportModal, setShowReportModal] = useState(false);
   const [showCaseModal, setShowCaseModal] = useState(false);
@@ -71,13 +72,31 @@ function App() {
     createAnalysisReport
   } = useAnalysisSession();
 
-  const { isRunning, events, startSimulation: startWSSimulation, stopSimulation: stopWSSimulation, clearEvents } = useLiveFeed();
+  const { isRunning, events, lastError, startSimulation: startWSSimulation, stopSimulation: stopWSSimulation, clearEvents } = useLiveFeed();
 
   // Determine active data source
   const activeGraph = analysisMode ? (analysisGraph || { nodes: [], edges: [] }) : graphData;
   const activeStats = analysisMode ? analysisStats : stats;
   const activeAlerts = analysisMode ? analysisAlerts : alerts;
   const activeMetrics = analysisMode ? analysisMetrics : metrics;
+
+  useEffect(() => {
+    if (analysisAlerts.length > 0) {
+      bumpCasesRefresh();
+    }
+  }, [analysisAlerts.length]);
+
+  useEffect(() => {
+    if (activeTab === 'cases') {
+      bumpCasesRefresh();
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
+    const onCasesChanged = () => bumpCasesRefresh();
+    window.addEventListener('idea:cases-changed', onCasesChanged);
+    return () => window.removeEventListener('idea:cases-changed', onCasesChanged);
+  }, []);
 
   const loadData = async () => {
     try {
@@ -125,6 +144,24 @@ function App() {
     if (activeTab === 'investigation' && !analysisMode) loadGraph();
   }, [activeTab, analysisMode]);
 
+  useEffect(() => {
+    if (lastError) {
+      addToast(lastError, 'error');
+    }
+  }, [lastError]);
+
+  const handleSimulateAttack = () => {
+    if (analysisMode && analysisRunning) {
+      addToast('Analysis is still running. Wait before simulating.', 'error');
+      return;
+    }
+    if (analysisMode && analysisAlerts.length === 0) {
+      addToast('Run analysis on the uploaded CSV before simulating an attack.', 'error');
+      return;
+    }
+    startWSSimulation({ analysisMode, pattern: activeView });
+  };
+
   const handleDetection = async () => {
     setDetecting(true);
     addToast('Running full network anomaly detection...', 'success');
@@ -139,6 +176,7 @@ function App() {
         loadValidation()
       ]);
       addToast('Detection complete. Dashboard updated.', 'success');
+      bumpCasesRefresh();
     } catch (e) {
       addToast("Detection failed to run.", 'error');
     } finally {
@@ -213,35 +251,38 @@ function App() {
 
   const renderInvestigation = () => (
     <div className="flex-1 flex overflow-hidden relative">
-      <LiveFeedPanel 
-        isRunning={isRunning} 
-        events={events} 
-        onStop={stopWSSimulation} 
+      <LiveFeedPanel
+        isRunning={isRunning}
+        events={events}
+        onStop={stopWSSimulation}
         onClose={clearEvents}
+        onCaseCreated={bumpCasesRefresh}
+        analysisMode={analysisMode}
       />
       <div className="flex-1 flex flex-col relative">
-        <GraphControls 
+        <GraphControls
           activeView={activeView}
           onFilterChange={setActiveView}
           onSearch={setSearchQuery}
           onZoomIn={() => setGraphAction({ type: 'zoom', value: 0.5, ts: Date.now() })}
           onZoomOut={() => setGraphAction({ type: 'zoom', value: -0.5, ts: Date.now() })}
           onFit={() => setGraphAction({ type: 'fit', ts: Date.now() })}
-          onSimulateAttack={startWSSimulation}
+          onSimulateAttack={handleSimulateAttack}
         />
-        <GraphCanvas 
-          graphData={activeGraph} 
-          onNodeClick={(data) => setSelectedEntity(data)} 
+        <GraphCanvas
+          graphData={activeGraph}
+          onNodeClick={(data) => setSelectedEntity(data)}
           activeView={activeView}
           searchQuery={searchQuery}
           graphAction={graphAction}
           isLive={isRunning}
           liveEvents={events}
+          analysisMode={analysisMode}
         />
       </div>
       <Sidebar>
-        <EntityDetails 
-          entity={selectedEntity} 
+        <EntityDetails
+          entity={selectedEntity}
           isAnalysis={analysisMode}
           onReportClick={() => setShowReportModal(true)}
           onCreateCase={() => setShowCaseModal(true)}
@@ -256,16 +297,16 @@ function App() {
         {!hasEntered ? (
           <LandingPage key="landing" onEnter={() => setHasEntered(true)} />
         ) : (
-          <motion.div 
-            key="app" 
-            initial={{ opacity: 0 }} 
-            animate={{ opacity: 1 }} 
+          <motion.div
+            key="app"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
             transition={{ duration: 0.8, ease: 'easeOut' }}
             className="flex h-full w-full flex-col relative"
           >
-            <TopBar 
-              activeTab={activeTab} 
-              onTabChange={setActiveTab} 
+            <TopBar
+              activeTab={activeTab}
+              onTabChange={setActiveTab}
               onDetect={handleDetection}
               onSimulate={handleSimulation}
               detecting={detecting}
@@ -287,11 +328,11 @@ function App() {
                   await stopAnalysisMode();
                   loadGraph(true);
                   loadData();
-                  getValidation().then(r => setMetrics(r)).catch(() => {});
+                  getValidation().then(r => setMetrics(r)).catch(() => { });
                 }}
               />
             )}
-            
+
             <main className="flex-1 flex overflow-hidden relative">
               <AnimatePresence mode="wait">
                 {activeTab === 'dashboard' && (
@@ -327,7 +368,7 @@ function App() {
                     transition={{ duration: 0.3, ease: 'easeOut' }}
                     className="absolute inset-0 flex"
                   >
-                    <CasesPanel key={casesLastUpdated} />
+                    <CasesPanel refreshKey={casesLastUpdated} />
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -335,24 +376,25 @@ function App() {
 
             {/* Modals */}
             {showReportModal && selectedEntity && (
-              <ReportModal 
-                entity={selectedEntity} 
-                onClose={() => setShowReportModal(false)} 
+              <ReportModal
+                entity={selectedEntity}
+                onClose={() => setShowReportModal(false)}
                 createReportFn={analysisMode ? createAnalysisReport : null}
                 addToast={addToast}
               />
             )}
-            
+
             {showCaseModal && selectedEntity && (
-              <CaseCreationModal 
-                entity={selectedEntity} 
+              <CaseCreationModal
+                entity={selectedEntity}
+                alerts={activeAlerts}
                 onClose={() => setShowCaseModal(false)}
                 analysisMode={analysisMode}
                 addToast={addToast}
                 onSuccess={() => {
                   setShowCaseModal(false);
-                  setCasesLastUpdated(Date.now()); // Force CasesPanel to re-fetch
-                  setActiveTab('cases'); // Jump to cases view
+                  bumpCasesRefresh();
+                  setActiveTab('cases');
                 }}
               />
             )}
@@ -368,8 +410,8 @@ function App() {
               />
             )}
 
-            <CopilotSidebar 
-              isOpen={copilotOpen} 
+            <CopilotSidebar
+              isOpen={copilotOpen}
               onClose={() => setCopilotOpen(false)}
               selectedEntity={selectedEntity}
             />

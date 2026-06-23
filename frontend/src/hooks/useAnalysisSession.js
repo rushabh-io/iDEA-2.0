@@ -24,7 +24,7 @@ export function useAnalysisSession() {
                 if (res.data.active) {
                     setAnalysisMode(true)
                     setAnalysisStatus(res.data)
-                    
+
                     // Fetch all relevant data
                     const [graph, stats, alerts, metrics] = await Promise.all([
                         getAnalysisGraph(),
@@ -32,11 +32,14 @@ export function useAnalysisSession() {
                         getAnalysisAlerts(),
                         getAnalysisValidation().catch(() => ({ data: null }))
                     ])
-                    
+
                     setAnalysisGraph(graph.data)
                     setAnalysisStats(stats.data)
                     setAnalysisAlerts(alerts.data || [])
                     setAnalysisMetrics(metrics.data)
+                    if (res.data.detection_ran) {
+                        window.dispatchEvent(new CustomEvent('idea:cases-changed'));
+                    }
                 }
             } catch (error) {
                 console.error("Session check failed:", error)
@@ -78,6 +81,7 @@ export function useAnalysisSession() {
             setAnalysisStats(stats.data)
             setAnalysisAlerts(alerts.data)
             setAnalysisMetrics(metrics.data)
+            window.dispatchEvent(new CustomEvent('idea:cases-changed'))
         } catch (error) {
             console.error("Analysis execution failed:", error)
         } finally {

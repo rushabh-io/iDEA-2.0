@@ -4,7 +4,7 @@ import { getCases, updateCase } from '../../api/client';
 import CaseCard from './CaseCard';
 import CaseForm from './CaseForm';
 
-const CasesPanel = () => {
+const CasesPanel = ({ refreshKey = 0 }) => {
   const [cases, setCases] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedCase, setSelectedCase] = useState(null);
@@ -23,7 +23,7 @@ const CasesPanel = () => {
 
   useEffect(() => {
     fetchCases();
-  }, []);
+  }, [refreshKey]);
 
   const handleUpdate = async (caseId, updates) => {
     try {
@@ -77,7 +77,9 @@ const CasesPanel = () => {
               </svg>
             </div>
             <h3 className="text-lg font-bold text-slate-800 tracking-tight">No active cases</h3>
-            <p className="mt-2 text-sm font-medium text-slate-500 max-w-[250px] mx-auto">Get started by analyzing the network graph and creating a case from an entity.</p>
+            <p className="mt-2 text-sm font-medium text-slate-500 max-w-[320px] mx-auto">
+              Run detection on uploaded CSV data, analysis mode, or the live graph to auto-generate investigation cases.
+            </p>
           </motion.div>
         ) : (
           <div className="space-y-4">

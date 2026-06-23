@@ -189,37 +189,6 @@ export const mockValidation = {
   total_laundering_in_dataset: 5177
 };
 
-export const mockCases = [
-  {
-    id: 'CASE_A1B2C3D4', title: 'Circular Flow — Shell Network Alpha',
-    status: 'OPEN', priority: 'High', assigned_to: 'Analyst Team A',
-    notes: 'Detected 4-node cycle routing $1.8M through HSBC → Deutsche Bank → UBS → Credit Suisse.',
-    created_at: '2024-09-15T10:30:00', updated_at: '2024-09-15T10:30:00',
-    account_id: '80A1B2C30'
-  },
-  {
-    id: 'CASE_E5F6G7H8', title: 'Fan-Out Hub — Barclays Dispersal',
-    status: 'INVESTIGATING', priority: 'High', assigned_to: 'Analyst Team B',
-    notes: 'Single account dispersed $932K across 5 accounts in one day. Velocity flag triggered.',
-    created_at: '2024-09-14T14:15:00', updated_at: '2024-09-15T08:00:00',
-    account_id: '80M4N5O60'
-  },
-  {
-    id: 'CASE_I9J0K1L2', title: 'Smurfing Cluster — Sub-10K Structuring',
-    status: 'OPEN', priority: 'Medium', assigned_to: 'Analyst Team A',
-    notes: '6 transactions all just under $10K reporting threshold funneled into single UBS account.',
-    created_at: '2024-09-13T09:45:00', updated_at: '2024-09-13T09:45:00',
-    account_id: '80N4O5P60'
-  },
-  {
-    id: 'CASE_M3N4O5P6', title: 'Bipartite Network — Cross-Border Layering',
-    status: 'ESCALATED', priority: 'High', assigned_to: 'Senior Investigator',
-    notes: 'Dense bilateral flow between Credit Suisse/BNP Paribas and JPMorgan/Citi. PEP connection identified.',
-    created_at: '2024-09-12T16:00:00', updated_at: '2024-09-14T11:30:00',
-    account_id: '80Q7R8S90'
-  }
-];
-
 export const mockDetectionResults = {
   message: "All 13 detection algorithms completed",
   total_alerts: 1322,
