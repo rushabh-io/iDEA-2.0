@@ -3,54 +3,41 @@ import pandas as pd
 from faker import Faker
 from datetime import datetime, timedelta
 from core.database import db
-from data.fatf_list import get_fatf_risk
 
 
-fake = Faker()
+fake = Faker('en_IN')
 
 def add_synthetic_ownership_layer(accounts_df):
     if accounts_df.empty:
         print("No accounts to process for synthetic ownership layer.")
         return {"persons": 0, "ownerships": 0, "directorships": 0}
 
-    print("Adding synthetic ownership layer...")
+    print("Adding synthetic ownership layer with Indian context...")
 
-    # Step 1: Get unique banks, assign countries
+    # Step 1: Get unique banks, assign locations
     banks = accounts_df['bank'].unique()
-    country_map = {}
+    location_map = {}
     
-    # from fatf_list
-    HIGH_RISK_COUNTRIES = [
-        "Cayman Islands", "British Virgin Islands", "Panama",
-        "Seychelles", "Belize", "Vanuatu", "Samoa",
-        "Myanmar", "Iran", "North Korea", "Syria", "Yemen"
-    ]
-    LOW_RISK_COUNTRIES = [
-        "United States", "United Kingdom", "Canada", "Australia",
-        "Germany", "France", "Japan", "Singapore", "Switzerland"
+    INDIAN_CITIES = [
+        "Mumbai", "Delhi", "Pune", "Chennai", "Bengaluru", "Hyderabad", "Kolkata", "Ahmedabad"
     ]
 
     for bank in banks:
-        # bias 2:1 toward HIGH_RISK_COUNTRIES
-        if random.random() < 0.66:
-            country = random.choice(HIGH_RISK_COUNTRIES)
-        else:
-            country = random.choice(LOW_RISK_COUNTRIES)
-        country_map[str(bank)] = {
-            "country": country,
-            "fatf_risk": get_fatf_risk(country)
+        city = random.choice(INDIAN_CITIES)
+        location_map[str(bank)] = {
+            "city": city,
+            "fatf_risk": "Low"  # Defaulting to Low for domestic
         }
 
-    # Update Account nodes with country and risk
+    # Update Account nodes with location
     update_query = """
     UNWIND $batch AS row
     MATCH (a:Account {bank: row.bank})
-    SET a.country = row.country,
-        a.fatf_risk = row.fatf_risk
+    SET a.location = row.city,
+        a.country = 'India'
     """
     
-    batch = [{"bank": k, "country": v["country"], "fatf_risk": v["fatf_risk"]}
-             for k, v in country_map.items()]
+    batch = [{"bank": k, "city": v["city"]} for k, v in location_map.items()]
     db.query(update_query, batch=batch)
 
     # Step 2: Create Person nodes
@@ -61,7 +48,7 @@ def add_synthetic_ownership_layer(accounts_df):
         persons.append({
             'id': f'PER_{i:04d}',
             'name': fake.name(),
-            'nationality': random.choice(HIGH_RISK_COUNTRIES + LOW_RISK_COUNTRIES),
+            'location': random.choice(INDIAN_CITIES),
             'pep': random.random() < 0.15
         })
 
@@ -70,7 +57,8 @@ def add_synthetic_ownership_layer(accounts_df):
     CREATE (p:Person {
         id: row.id,
         name: row.name,
-        nationality: row.nationality,
+        location: row.location,
+        nationality: 'Indian',
         pep: row.pep,
         type: 'Person'
     })

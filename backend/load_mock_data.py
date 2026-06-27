@@ -6,7 +6,7 @@ from data.hybrid_loader import add_synthetic_ownership_layer
 from routers.detection import run_all_detectors
 
 def load_data():
-    csv_path = r"d:\Project\iDEA-2.0\nexara_test_data.csv"
+    csv_path = r"c:\Users\Khushi Rathod\OneDrive\Desktop\Projects\iDEA-2.0-1\nexara_test_data.csv"
     if not os.path.exists(csv_path):
         print(f"Error: {csv_path} not found.")
         return

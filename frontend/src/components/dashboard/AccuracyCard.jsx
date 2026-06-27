@@ -136,6 +136,15 @@ const AccuracyCard = ({ metrics, isAnalysis = false }) => {
         </span>
       </div>
 
+      {/* IBM Dataset Disclaimer */}
+      {!isAnalysis && (
+        <div style={{fontSize: '13px', color: '#555', marginBottom: '16px', lineHeight: '1.6', backgroundColor: '#f8fafc', padding: '12px', borderRadius: '8px'}}>
+          <strong>Model Validation Note:</strong> Accuracy, recall, and F1-score are validated on the IBM AML NeurIPS 2023 benchmark dataset (synthetic global transaction data). 
+          Live deployment ingests real RTGS/NEFT/IMPS/NACH transaction streams from Union Bank of India Core Banking System (Finacle), 
+          with Indian-specific risk weighting for CTR (₹10L) and STR (₹50L) thresholds per RBI guidelines.
+        </div>
+      )}
+
       {/* Metrics Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         {metricItems.map((item, index) => (

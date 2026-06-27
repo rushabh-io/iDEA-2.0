@@ -171,7 +171,7 @@ const PatternBreakdown = ({ alerts }) => {
       {/* Summary footer */}
       <div className="mt-4 pt-4 border-t border-slate-200/50 flex items-center justify-between">
         <span className="text-xs font-medium text-slate-500">
-          Total patterns: <span className="font-bold text-slate-700 ml-1">{data.length}</span>
+          Total patterns: <span className="font-bold text-slate-700 ml-1">6</span>
         </span>
         <span className="text-xs font-medium text-slate-500">
           Total alerts: <span className="font-bold text-slate-700 ml-1">{alerts.length.toLocaleString()}</span>

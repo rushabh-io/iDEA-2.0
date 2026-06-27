@@ -9,7 +9,7 @@ Nexara is an advanced, end-to-end Anti-Money Laundering (AML) platform that tran
 ### 🧠 Graph Intelligence (Neo4j)
 Nexara treats financial data as a connected ecosystem. Using **Neo4j**, it uncovers hidden relationships and complex laundering structures (like smurfing, layering, and circular flows) that traditional relational databases miss.
 
-### 🛡️ 13+ Advanced Detection Engines
+### 🛡️ 6 Advanced Detection Engines
 A comprehensive suite of algorithmic detectors focused on:
 - **Circular Flow Detection**: Identifying funds returning to the source.
 - **Fan-in/Fan-out (Layering)**: Detecting consolidation and rapid distribution.

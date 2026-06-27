@@ -154,7 +154,7 @@ const GraphCanvas = ({ graphData, onNodeClick, activeView = 'all', searchQuery =
           case 'dormant_acct':
             return data.is_dormant === true ||
               data.layering_score === 2 ||
-              (data.type === 'Account' && data.bank === 'Deutsche Bank' && !data.suspicious);
+              (data.type === 'Account' && data.bank === 'SBI' && !data.suspicious);
           case 'fan_out':
             return data.fan_out_flag === true ||
               data.patterns?.includes('FAN-OUT') ||
@@ -193,7 +193,7 @@ const GraphCanvas = ({ graphData, onNodeClick, activeView = 'all', searchQuery =
             case 'dormant_acct':
               return nodeData.is_dormant === true ||
                 nodeData.layering_score === 2 ||
-                (nodeData.type === 'Account' && nodeData.bank === 'Deutsche Bank' && !nodeData.suspicious);
+                (nodeData.type === 'Account' && nodeData.bank === 'SBI' && !nodeData.suspicious);
             case 'fan_out':
               return nodeData.fan_out_flag === true ||
                 nodeData.patterns?.includes('FAN-OUT') ||

@@ -2,8 +2,8 @@
 // This simulates the exact shape that all API endpoints return
 
 // ── Accounts (nodes) ──
-const BANKS = ['HSBC', 'Deutsche Bank', 'Barclays', 'UBS', 'Credit Suisse', 'BNP Paribas', 'JPMorgan', 'Citi', 'Standard Chartered', 'Wells Fargo'];
-const COUNTRIES = ['Cayman Islands', 'British Virgin Islands', 'Panama', 'United States', 'United Kingdom', 'Switzerland', 'Singapore', 'Germany', 'Seychelles', 'Belize'];
+const BANKS = ['Union Bank of India', 'SBI', 'HDFC Bank', 'ICICI Bank', 'PNB', 'Canara Bank', 'Bank of Baroda', 'Axis Bank'];
+const COUNTRIES = ['Mumbai', 'Delhi', 'Bangalore', 'Hyderabad', 'Ahmedabad', 'Chennai', 'Kolkata', 'Surat', 'Pune', 'Jaipur'];
 
 function makeAccount(id, bank, suspicious, riskScore, mlScore, flags = {}) {
   return {
@@ -61,36 +61,36 @@ function makeEdge(src, tgt, amount, relType = 'TRANSACTION', suspicious = false)
 
 // ── Build the graph ──
 // Shell network: A -> B -> C -> D -> A (CYCLE)
-const shellA = makeAccount('80A1B2C30', 'HSBC', true, 95, 100, { flag: 'CIRCULAR_FLOW', patterns: ['CYCLE', 'FAN-OUT'], fan_out: true, layering: 3 });
-const shellB = makeAccount('80D4E5F60', 'Deutsche Bank', true, 88, 98, { flag: 'CIRCULAR_FLOW', patterns: ['CYCLE', 'GATHER-SCATTER'], gather_scatter: true, layering: 2 });
-const shellC = makeAccount('80G7H8I90', 'UBS', true, 92, 100, { flag: 'CIRCULAR_FLOW', patterns: ['CYCLE', 'STACK'], layering: 4 });
-const shellD = makeAccount('80J1K2L30', 'Credit Suisse', true, 85, 95, { flag: 'CIRCULAR_FLOW', patterns: ['CYCLE'], layering: 2 });
+const shellA = makeAccount('80A1B2C30', 'Union Bank of India', true, 95, 100, { flag: 'CIRCULAR_FLOW', patterns: ['CYCLE', 'FAN-OUT'], fan_out: true, layering: 3 });
+const shellB = makeAccount('80D4E5F60', 'SBI', true, 88, 98, { flag: 'CIRCULAR_FLOW', patterns: ['CYCLE', 'GATHER-SCATTER'], gather_scatter: true, layering: 2 });
+const shellC = makeAccount('80G7H8I90', 'HDFC Bank', true, 92, 100, { flag: 'CIRCULAR_FLOW', patterns: ['CYCLE', 'STACK'], layering: 4 });
+const shellD = makeAccount('80J1K2L30', 'ICICI Bank', true, 85, 95, { flag: 'CIRCULAR_FLOW', patterns: ['CYCLE'], layering: 2 });
 
 // Fan-out hub: E sends to F, G, H, I, J
-const fanHub = makeAccount('80M4N5O60', 'Barclays', true, 100, 100, { flag: 'FAN_OUT', patterns: ['FAN-OUT'], fan_out: true, velocity: true, layering: 5 });
-const fanTarget1 = makeAccount('80P7Q8R90', 'BNP Paribas', true, 70, 82, { patterns: ['FAN-OUT'], fan_in: true });
-const fanTarget2 = makeAccount('80S1T2U30', 'JPMorgan', true, 65, 78, { patterns: ['FAN-OUT'] });
-const fanTarget3 = makeAccount('80V4W5X60', 'Citi', true, 60, 75, { patterns: ['FAN-OUT'] });
-const fanTarget4 = makeAccount('80Y7Z8A90', 'Standard Chartered', true, 72, 85, { patterns: ['FAN-OUT'], pep: true });
-const fanTarget5 = makeAccount('80B1C2D30', 'Wells Fargo', true, 55, 70, { patterns: ['FAN-OUT'] });
+const fanHub = makeAccount('80M4N5O60', 'PNB', true, 100, 100, { flag: 'FAN_OUT', patterns: ['FAN-OUT'], fan_out: true, velocity: true, layering: 5 });
+const fanTarget1 = makeAccount('80P7Q8R90', 'Canara Bank', true, 70, 82, { patterns: ['FAN-OUT'], fan_in: true });
+const fanTarget2 = makeAccount('80S1T2U30', 'Bank of Baroda', true, 65, 78, { patterns: ['FAN-OUT'] });
+const fanTarget3 = makeAccount('80V4W5X60', 'Axis Bank', true, 60, 75, { patterns: ['FAN-OUT'] });
+const fanTarget4 = makeAccount('80Y7Z8A90', 'Union Bank of India', true, 72, 85, { patterns: ['FAN-OUT'], pep: true });
+const fanTarget5 = makeAccount('80B1C2D30', 'SBI', true, 55, 70, { patterns: ['FAN-OUT'] });
 
 // Smurfing cluster: many small txns from K,L,M -> N
-const smurfSrc1 = makeAccount('80E4F5G60', 'HSBC', true, 78, 88, { flag: 'SMURFING', patterns: ['RANDOM'], velocity: true });
-const smurfSrc2 = makeAccount('80H7I8J90', 'Deutsche Bank', true, 75, 85, { flag: 'SMURFING', patterns: ['RANDOM'] });
-const smurfSrc3 = makeAccount('80K1L2M30', 'Barclays', true, 72, 80, { flag: 'SMURFING', patterns: ['RANDOM'] });
-const smurfDest = makeAccount('80N4O5P60', 'UBS', true, 90, 96, { flag: 'SMURFING', patterns: ['RANDOM', 'FAN-IN'], fan_in: true, layering: 3 });
+const smurfSrc1 = makeAccount('80E4F5G60', 'HDFC Bank', true, 78, 88, { flag: 'SMURFING', patterns: ['RANDOM'], velocity: true });
+const smurfSrc2 = makeAccount('80H7I8J90', 'ICICI Bank', true, 75, 85, { flag: 'SMURFING', patterns: ['RANDOM'] });
+const smurfSrc3 = makeAccount('80K1L2M30', 'PNB', true, 72, 80, { flag: 'SMURFING', patterns: ['RANDOM'] });
+const smurfDest = makeAccount('80N4O5P60', 'Canara Bank', true, 90, 96, { flag: 'SMURFING', patterns: ['RANDOM', 'FAN-IN'], fan_in: true, layering: 3 });
 
 // Bipartite network
-const biA = makeAccount('80Q7R8S90', 'Credit Suisse', true, 82, 90, { flag: 'BIPARTITE', patterns: ['BIPARTITE'], codirector: true });
-const biB = makeAccount('80T1U2V30', 'BNP Paribas', true, 80, 88, { flag: 'BIPARTITE', patterns: ['BIPARTITE'] });
-const biC = makeAccount('80W4X5Y60', 'JPMorgan', true, 78, 86, { patterns: ['BIPARTITE', 'SCATTER-GATHER'], scatter_gather: true });
-const biD = makeAccount('80Z7A8B90', 'Citi', true, 76, 84, { patterns: ['BIPARTITE'] });
+const biA = makeAccount('80Q7R8S90', 'Bank of Baroda', true, 82, 90, { flag: 'BIPARTITE', patterns: ['BIPARTITE'], codirector: true });
+const biB = makeAccount('80T1U2V30', 'Axis Bank', true, 80, 88, { flag: 'BIPARTITE', patterns: ['BIPARTITE'] });
+const biC = makeAccount('80W4X5Y60', 'Union Bank of India', true, 78, 86, { patterns: ['BIPARTITE', 'SCATTER-GATHER'], scatter_gather: true });
+const biD = makeAccount('80Z7A8B90', 'SBI', true, 76, 84, { patterns: ['BIPARTITE'] });
 
 // Clean accounts for contrast
-const clean1 = makeAccount('81C1D2E30', 'HSBC', false, 5, 2, {});
-const clean2 = makeAccount('81F4G5H60', 'Wells Fargo', false, 0, 0, {});
-const clean3 = makeAccount('81I7J8K90', 'Barclays', false, 10, 5, {});
-const clean4 = makeAccount('81L1M2N30', 'JPMorgan', false, 3, 1, {});
+const clean1 = makeAccount('81C1D2E30', 'HDFC Bank', false, 5, 2, {});
+const clean2 = makeAccount('81F4G5H60', 'ICICI Bank', false, 0, 0, {});
+const clean3 = makeAccount('81I7J8K90', 'PNB', false, 10, 5, {});
+const clean4 = makeAccount('81L1M2N30', 'Canara Bank', false, 3, 1, {});
 
 // Persons (UBOs)
 const person1 = makePerson('PER_0001', 'Viktor Petrov', true);

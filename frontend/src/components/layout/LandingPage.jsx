@@ -123,14 +123,17 @@ const LandingPage = ({ onEnter }) => {
           Nexara Intelligence
         </motion.h1>
 
-        <motion.div variants={itemVariants} className="text-center max-w-2xl mb-12">
+        <motion.div variants={itemVariants} className="text-center max-w-2xl mb-8">
           <p className="text-lg sm:text-xl text-slate-600 font-medium leading-relaxed">
             Adaptive Anti-Money Laundering Platform. Real-time network analysis, machine learning detection, and automated compliance routing.
+          </p>
+          <p className="text-md text-brand-700 font-semibold mt-4 bg-brand-50 p-3 rounded-lg border border-brand-100/50 shadow-sm">
+            Nexara adds graph intelligence and explainable ML on top of your existing FIS Memento — not a replacement.
           </p>
         </motion.div>
 
         {/* Feature Pills (Light Theme) */}
-        <motion.div variants={itemVariants} className="flex flex-wrap justify-center gap-4 mb-14">
+        <motion.div variants={itemVariants} className="flex flex-wrap justify-center gap-4 mb-8">
           <div className="px-5 py-2.5 rounded-full border border-slate-200/60 bg-white/70 backdrop-blur-md text-slate-700 text-sm font-bold tracking-wide shadow-sm flex items-center gap-2.5 hover:shadow-md hover:bg-white transition-all">
             <div className="w-2 h-2 rounded-full bg-emerald-500 animate-[pulse_2s_infinite]"></div> Live Graph Sync
           </div>
@@ -140,6 +143,35 @@ const LandingPage = ({ onEnter }) => {
           <div className="px-5 py-2.5 rounded-full border border-slate-200/60 bg-white/70 backdrop-blur-md text-slate-700 text-sm font-bold tracking-wide shadow-sm flex items-center gap-2.5 hover:shadow-md hover:bg-white transition-all">
             <div className="w-2 h-2 rounded-full bg-indigo-500 animate-[pulse_2s_infinite_200ms]"></div> Auto-SAR Drafting
           </div>
+        </motion.div>
+
+        {/* Finacle Integration Section */}
+        <motion.div variants={itemVariants} className="mb-10 w-full max-w-lg bg-white/60 backdrop-blur-md rounded-2xl border border-slate-200/60 p-5 shadow-sm text-center">
+           <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider mb-3">Enterprise Integration Architecture</h3>
+           <div className="flex items-center justify-center gap-4 text-sm font-medium text-slate-600 mb-2">
+             <div className="flex flex-col items-center">
+                <div className="w-10 h-10 rounded-lg bg-brand-100 flex items-center justify-center text-brand-700 font-bold shadow-inner mb-1">
+                  CBS
+                </div>
+                Finacle
+             </div>
+             <div className="flex flex-col items-center flex-1">
+                <div className="flex items-center w-full">
+                  <div className="h-px bg-slate-300 flex-1"></div>
+                  <span className="px-2 text-xs text-brand-600 font-bold bg-white rounded-full border border-slate-200 shadow-sm whitespace-nowrap">Kafka / MuleSoft</span>
+                  <div className="h-px bg-slate-300 flex-1"></div>
+                </div>
+             </div>
+             <div className="flex flex-col items-center">
+                <div className="w-10 h-10 rounded-lg bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold shadow-inner mb-1">
+                  AI
+                </div>
+                Nexara
+             </div>
+           </div>
+           <p className="text-xs text-slate-500 mt-3 font-medium">
+             Nexara connects to Union Bank's Finacle via Kafka event streaming and MuleSoft REST API.
+           </p>
         </motion.div>
 
         {/* Enter Button (Primary Pop) */}
